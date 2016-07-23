@@ -1,12 +1,10 @@
 // UsbEject version 1.0 March 2006
 // written by Simon Mourier <email: simon [underscore] mourier [at] hotmail [dot] com>
 
-using System;
-using System.Collections.Generic;
-using System.Text;
-
-namespace UsbEject.Library
+namespace UsbEject
 {
+    using System;
+
     /// <summary>
     /// The device class for disk devices.
     /// </summary>

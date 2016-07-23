@@ -1,39 +1,35 @@
 // UsbEject version 1.0 March 2006
 // written by Simon Mourier <email: simon [underscore] mourier [at] hotmail [dot] com>
 
-using System;
-using System.Collections.Generic;
-using System.Text;
+namespace UsbEject {
 
-namespace UsbEject.Library
-{
+    using System;
+    using System.Collections.Generic;
+    using System.Text;
+
     /// <summary>
-    /// The device class for volume devices.
+    ///     The device class for volume devices.
     /// </summary>
-    public class VolumeDeviceClass : DeviceClass
-    {
-        internal SortedDictionary<string, string> _logicalDrives = new SortedDictionary<string, string>();
+    public class VolumeDeviceClass : DeviceClass {
 
         /// <summary>
-        /// Initializes a new instance of the VolumeDeviceClass class.
+        ///     Initializes a new instance of the VolumeDeviceClass class.
         /// </summary>
-        public VolumeDeviceClass()
-            : base(new Guid(Native.GUID_DEVINTERFACE_VOLUME))
-        {
-            foreach(string drive in Environment.GetLogicalDrives())
-            {
-                StringBuilder sb = new StringBuilder(1024);
-                if (Native.GetVolumeNameForVolumeMountPoint(drive, sb, sb.Capacity))
-                {
-                    _logicalDrives[sb.ToString()] = drive.Replace("\\", "");
-                    Console.WriteLine(drive + " ==> " + sb.ToString());
+        public VolumeDeviceClass() : base( new Guid( Native.GUID_DEVINTERFACE_VOLUME ) ) {
+            foreach ( var drive in Environment.GetLogicalDrives() ) {
+                var sb = new StringBuilder( 1024 );
+                if ( !Native.GetVolumeNameForVolumeMountPoint( drive, sb, ( UInt32 )sb.Capacity ) ) {
+                    continue;
                 }
+                this.LogicalDrives[ sb.ToString() ] = drive.Replace( "\\", "" );
+                Console.WriteLine( drive + " ==> " + sb );
             }
         }
 
-        internal override Device CreateDevice(DeviceClass deviceClass, Native.SP_DEVINFO_DATA deviceInfoData, string path, int index, int disknum = -1)
-        {
-            return new Volume(deviceClass, deviceInfoData, path, index);
+        protected internal SortedDictionary<String, String> LogicalDrives { get; } = new SortedDictionary<String, String>();
+
+        protected override Device CreateDevice( DeviceClass deviceClass, Native.SP_DEVINFO_DATA deviceInfoData, String path, Int32 index, Int32 disknum = -1 ) {
+            return new Volume( deviceClass, deviceInfoData, path, index );
         }
     }
 }

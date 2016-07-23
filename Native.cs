@@ -1,69 +1,58 @@
 // UsbEject version 1.0 March 2006
 // written by Simon Mourier <email: simon [underscore] mourier [at] hotmail [dot] com>
 
-using System;
-using System.Runtime.InteropServices;
-using System.Text;
+namespace UsbEject {
 
-namespace UsbEject.Library
-{
-	internal sealed class Native
-	{
+    using System;
+    using System.IO;
+    using System.Runtime.ConstrainedExecution;
+    using System.Runtime.InteropServices;
+    using System.Security;
+    using System.Text;
+    using Microsoft.Win32.SafeHandles;
+
+    public static class Native {
+        public const Int32 DIGCF_DEVICEINTERFACE = ( 0x00000010 );
+
+        // from setupapi.h
+        public const Int32 DIGCF_PRESENT = ( 0x00000002 );
+
+        public const Int32 ERROR_INSUFFICIENT_BUFFER = 122;
+
+        public const Int32 ERROR_INVALID_DATA = 13;
+
+        // from winerror.h
+        public const Int32 ERROR_NO_MORE_ITEMS = 259;
+
+        public const Int32 GENERIC_READ = unchecked(( Int32 )0x80000000);
+
+        public const String GUID_DEVINTERFACE_DISK = "53f56307-b6bf-11d0-94f2-00a0c91efb8b";
+
+        // from winioctl.h
+        public const String GUID_DEVINTERFACE_VOLUME = "53f5630d-b6bf-11d0-94f2-00a0c91efb8b";
+
+        // from winbase.h
+        public const Int32 INVALID_HANDLE_VALUE = -1;
+
+        public const Int32 IOCTL_STORAGE_GET_DEVICE_NUMBER = 0x002d1080;
+
+        public const Int32 IOCTL_VOLUME_GET_VOLUME_DISK_EXTENTS = 0x00560000;
+
+        public const Int32 SPDRP_CAPABILITIES = 0x0000000F;
+
+        public const Int32 SPDRP_CLASS = 0x00000007;
+
+        public const Int32 SPDRP_CLASSGUID = 0x00000008;
+
+        public const Int32 SPDRP_DEVICEDESC = 0x00000000;
+
+        public const Int32 SPDRP_FRIENDLYNAME = 0x0000000C;
+
         // from winuser.h
-        internal const int WM_DEVICECHANGE = 0x0219;
-
-		// from winbase.h
-		internal const int INVALID_HANDLE_VALUE = -1;
-        internal const int GENERIC_READ = unchecked((int)0x80000000);
-        internal const int FILE_SHARE_READ = 0x00000001;
-        internal const int FILE_SHARE_WRITE = 0x00000002;
-        internal const int OPEN_EXISTING = 3;
-
-        [DllImport("kernel32", CharSet = CharSet.Auto, SetLastError = true)]
-        internal static extern bool GetVolumeNameForVolumeMountPoint(
-            string volumeName,
-            StringBuilder uniqueVolumeName,
-            int uniqueNameBufferCapacity);
-
-        [DllImport("Kernel32.dll", SetLastError = true)]
-        internal static extern IntPtr CreateFile(string lpFileName, int dwDesiredAccess, int dwShareMode, IntPtr lpSecurityAttributes, int dwCreationDisposition, int dwFlagsAndAttributes, IntPtr hTemplateFile);
-
-        [DllImport("Kernel32.dll", SetLastError = true)]
-        internal static extern bool DeviceIoControl(IntPtr hDevice, int dwIoControlCode, IntPtr lpInBuffer, int nInBufferSize, IntPtr lpOutBuffer, int nOutBufferSize, out int lpBytesReturned, IntPtr lpOverlapped);
-
-        [DllImport("Kernel32.dll", SetLastError = true)]
-        internal static extern bool CloseHandle(IntPtr hObject);
-
-		// from winerror.h
-		internal const int ERROR_NO_MORE_ITEMS = 259;
-		internal const int ERROR_INSUFFICIENT_BUFFER = 122;
-		internal const int ERROR_INVALID_DATA = 13;
-
-		// from winioctl.h
-		internal const string GUID_DEVINTERFACE_VOLUME = "53f5630d-b6bf-11d0-94f2-00a0c91efb8b";
-		internal const string GUID_DEVINTERFACE_DISK = "53f56307-b6bf-11d0-94f2-00a0c91efb8b";
-        internal const int IOCTL_VOLUME_GET_VOLUME_DISK_EXTENTS = 0x00560000;
-        internal const int IOCTL_STORAGE_GET_DEVICE_NUMBER      = 0x002d1080;
-       
-        [StructLayout(LayoutKind.Sequential)]
-		internal struct DISK_EXTENT 
-		{
-			internal int DiskNumber;
-			internal long StartingOffset;
-			internal long ExtentLength;
-		}
-
-        [StructLayout(LayoutKind.Sequential)]
-        internal struct STORAGE_DEVICE_NUMBER
-        {
-            public int DeviceType;
-            public int DeviceNumber;
-            public int PartitionNumber;
-        }
+        public const Int32 WM_DEVICECHANGE = 0x0219;
 
         // from cfg.h
-        internal enum PNP_VETO_TYPE
-        {
+        public enum PNP_VETO_TYPE {
             Ok,
 
             TypeUnknown,
@@ -77,127 +66,89 @@ namespace UsbEject.Library
             IllegalDeviceRequest,
             InsufficientPower,
             NonDisableable,
-            LegacyDriver,
+            LegacyDriver
         }
+
+        [DllImport( "kernel32.dll", SetLastError = true )]
+        [ReliabilityContract( Consistency.WillNotCorruptState, Cer.Success )]
+        [SuppressUnmanagedCodeSecurity]
+        [return: MarshalAs( UnmanagedType.Bool )]
+        public static extern Boolean CloseHandle( IntPtr hObject );
+
+        [DllImport( "setupapi.dll" )]
+        public static extern Int32 CM_Get_Device_ID( Int32 dnDevInst, StringBuilder buffer, Int32 bufferLen, Int32 ulFlags );
 
         // from cfgmgr32.h
-        [DllImport("setupapi.dll")]
-        internal static extern int CM_Get_Parent(
-            ref int pdnDevInst,
-            uint dnDevInst,
-            int ulFlags);
+        [DllImport( "setupapi.dll" )]
+        public static extern Int32 CM_Get_Parent( ref Int32 pdnDevInst, UInt32 dnDevInst, Int32 ulFlags );
 
-        [DllImport("setupapi.dll")]
-        internal static extern int CM_Get_Device_ID(
-            int dnDevInst,
-            StringBuilder buffer,
-            int bufferLen,
-            int ulFlags);
+        [DllImport( "setupapi.dll" )]
+        public static extern Int32 CM_Request_Device_Eject( UInt32 dnDevInst, out PNP_VETO_TYPE pVetoType, StringBuilder pszVetoName, Int32 ulNameLength, Int32 ulFlags );
 
-        [DllImport("setupapi.dll")]
-        internal static extern int CM_Request_Device_Eject(
-            uint dnDevInst,
-            out PNP_VETO_TYPE pVetoType,
-            StringBuilder pszVetoName,
-            int ulNameLength,
-            int ulFlags
-            );
+        [DllImport( "setupapi.dll", EntryPoint = "CM_Request_Device_Eject" )]
+        public static extern Int32 CM_Request_Device_Eject_NoUi( UInt32 dnDevInst, IntPtr pVetoType, StringBuilder pszVetoName, Int32 ulNameLength, Int32 ulFlags );
 
-        [DllImport("setupapi.dll", EntryPoint = "CM_Request_Device_Eject")]
-        internal static extern int CM_Request_Device_Eject_NoUi(
-            uint dnDevInst,
-            IntPtr pVetoType,
-            StringBuilder pszVetoName,
-            int ulNameLength,
-            int ulFlags
-            );
+        [DllImport( "kernel32.dll", SetLastError = true, CharSet = CharSet.Auto )]
+        public static extern SafeFileHandle CreateFile( String lpFileName, [MarshalAs( UnmanagedType.U4 )] FileAccess dwDesiredAccess, [MarshalAs( UnmanagedType.U4 )] FileShare dwShareMode, IntPtr lpSecurityAttributes, [MarshalAs( UnmanagedType.U4 )] FileMode dwCreationDisposition, [MarshalAs( UnmanagedType.U4 )] FileAttributes dwFlagsAndAttributes, IntPtr hTemplateFile );
 
-        // from setupapi.h
-        internal const int DIGCF_PRESENT = (0x00000002);
-        internal const int DIGCF_DEVICEINTERFACE = (0x00000010);
+        [DllImport( "kernel32.dll", ExactSpelling = true, SetLastError = true, CharSet = CharSet.Auto )]
+        public static extern Boolean DeviceIoControl( IntPtr hDevice, UInt32 dwIoControlCode, IntPtr lpInBuffer, UInt32 nInBufferSize, IntPtr lpOutBuffer, UInt32 nOutBufferSize, out UInt32 lpBytesReturned, IntPtr lpOverlapped );
 
-        internal const int SPDRP_DEVICEDESC = 0x00000000;
-        internal const int SPDRP_CAPABILITIES = 0x0000000F;
-        internal const int SPDRP_CLASS = 0x00000007;
-        internal const int SPDRP_CLASSGUID = 0x00000008;
-        internal const int SPDRP_FRIENDLYNAME = 0x0000000C;
+        [DllImport( "kernel32", CharSet = CharSet.Auto, SetLastError = true )]
+        public static extern Boolean GetVolumeNameForVolumeMountPoint( String volumeName, StringBuilder uniqueVolumeName, UInt32 uniqueNameBufferCapacity );
 
-        [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Auto)]
-        public class SP_DEVINFO_DATA
-        {
-            public uint cbSize;
-            public Guid classGuid;
-            public uint devInst;
-            public IntPtr reserved;
+        [DllImport( "setupapi.dll" )]
+        public static extern UInt32 SetupDiDestroyDeviceInfoList( IntPtr deviceInfoSet );
+
+        [DllImport( "setupapi.dll", SetLastError = true, CharSet = CharSet.Auto )]
+        public static extern Boolean SetupDiEnumDeviceInterfaces( IntPtr deviceInfoSet, SP_DEVINFO_DATA deviceInfoData, ref Guid interfaceClassGuid, Int32 memberIndex, SP_DEVICE_INTERFACE_DATA deviceInterfaceData );
+
+        [DllImport( "setupapi.dll" )]
+        public static extern IntPtr SetupDiGetClassDevs( ref Guid classGuid, Int32 enumerator, IntPtr hwndParent, Int32 flags );
+
+        [DllImport( "setupapi.dll", SetLastError = true, CharSet = CharSet.Auto )]
+        public static extern Boolean SetupDiGetDeviceInterfaceDetail( IntPtr deviceInfoSet, SP_DEVICE_INTERFACE_DATA deviceInterfaceData, IntPtr deviceInterfaceDetailData, Int32 deviceInterfaceDetailDataSize, ref Int32 requiredSize, SP_DEVINFO_DATA deviceInfoData );
+
+        [DllImport( "setupapi.dll", CharSet = CharSet.Auto, SetLastError = true )]
+        public static extern Boolean SetupDiGetDeviceRegistryProperty( IntPtr deviceInfoSet, ref SP_DEVINFO_DATA deviceInfoData, UInt32 property, out UInt32 propertyRegDataType, Byte[] propertyBuffer, UInt32 propertyBufferSize, out UInt32 requiredSize );
+
+        [DllImport( "setupapi.dll" )]
+        public static extern Boolean SetupDiOpenDeviceInfo( IntPtr deviceInfoSet, String deviceInstanceId, IntPtr hwndParent, Int32 openFlags, SP_DEVINFO_DATA deviceInfoData );
+
+        [StructLayout( LayoutKind.Sequential )]
+        public struct DISK_EXTENT {
+            public Int32 DiskNumber;
+            public Int64 StartingOffset;
+            public Int64 ExtentLength;
         }
 
-        [StructLayout(LayoutKind.Sequential, Pack = 2)]
-		internal class SP_DEVICE_INTERFACE_DETAIL_DATA
-		{
-			internal int cbSize;
-            internal short devicePath;
-		}
+        [StructLayout( LayoutKind.Sequential )]
+        public struct STORAGE_DEVICE_NUMBER {
+            public Int32 DeviceType;
+            public Int32 DeviceNumber;
+            public Int32 PartitionNumber;
+        }
 
-        [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Auto)]
-        public class SP_DEVICE_INTERFACE_DATA
-        {
-            public uint cbSize;
+        [StructLayout( LayoutKind.Sequential, CharSet = CharSet.Auto )]
+        public class SP_DEVICE_INTERFACE_DATA {
+            public UInt32 cbSize;
+            public UInt32 Flags;
             public Guid InterfaceClassGuid;
-            public uint Flags;
             public IntPtr Reserved;
         }
 
-        [DllImport("setupapi.dll")]
-		internal static extern IntPtr SetupDiGetClassDevs(
-			ref Guid classGuid,
-			int enumerator,
-			IntPtr hwndParent,
-			int flags);
+        [StructLayout( LayoutKind.Sequential, Pack = 2 )]
+        public class SP_DEVICE_INTERFACE_DETAIL_DATA {
+            public Int32 cbSize;
+            public Int16 devicePath;
+        }
 
-        [DllImport("setupapi.dll", SetLastError = true, CharSet = CharSet.Auto)]
-        internal static extern bool SetupDiEnumDeviceInterfaces(
-            IntPtr deviceInfoSet,
-            SP_DEVINFO_DATA deviceInfoData,
-            ref Guid interfaceClassGuid,
-            int memberIndex,
-            SP_DEVICE_INTERFACE_DATA deviceInterfaceData);
-
-        [DllImport("setupapi.dll")]
-        internal static extern bool SetupDiOpenDeviceInfo(
-            IntPtr deviceInfoSet,
-            string deviceInstanceId,
-            IntPtr hwndParent,
-            int openFlags,
-            SP_DEVINFO_DATA deviceInfoData
-            );
-
-        [DllImport("setupapi.dll", SetLastError = true, CharSet = CharSet.Auto)]
-        internal static extern bool SetupDiGetDeviceInterfaceDetail(
-            IntPtr deviceInfoSet,
-            SP_DEVICE_INTERFACE_DATA deviceInterfaceData,
-            IntPtr deviceInterfaceDetailData,
-            int deviceInterfaceDetailDataSize,
-            ref int requiredSize,
-            SP_DEVINFO_DATA deviceInfoData);
-
-        [DllImport("setupapi.dll", CharSet = CharSet.Auto, SetLastError = true)]
-        internal static extern bool SetupDiGetDeviceRegistryProperty(
-            IntPtr deviceInfoSet,
-            SP_DEVINFO_DATA deviceInfoData,
-            int property,
-            out int propertyRegDataType,
-            IntPtr propertyBuffer,
-            int propertyBufferSize,
-            out int requiredSize
-            );
-        
-        [DllImport("setupapi.dll")]
-		internal static extern uint SetupDiDestroyDeviceInfoList(
-			IntPtr deviceInfoSet);
-
-
-        private Native()
-		{
-		}
-	}
+        [StructLayout( LayoutKind.Sequential, CharSet = CharSet.Auto )]
+        public class SP_DEVINFO_DATA {
+            public UInt32 cbSize;
+            public Guid classGuid;
+            public UInt32 devInst;
+            public IntPtr reserved;
+        }
+    }
 }
