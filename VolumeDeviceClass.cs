@@ -16,13 +16,14 @@ namespace UsbEject {
         ///     Initializes a new instance of the VolumeDeviceClass class.
         /// </summary>
         public VolumeDeviceClass() : base( new Guid( Native.GUID_DEVINTERFACE_VOLUME ) ) {
+            var sb = new StringBuilder( 1024 );
             foreach ( var drive in Environment.GetLogicalDrives() ) {
-                var sb = new StringBuilder( 1024 );
+                sb.Clear();
                 if ( !Native.GetVolumeNameForVolumeMountPoint( drive, sb, ( UInt32 )sb.Capacity ) ) {
                     continue;
                 }
                 this.LogicalDrives[ sb.ToString() ] = drive.Replace( "\\", "" );
-                Console.WriteLine( drive + " ==> " + sb );
+                //Debug.WriteLine( drive + " ==> " + sb );
             }
         }
 
